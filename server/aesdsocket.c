@@ -261,9 +261,15 @@ void *handle_connection(void *arg)
         return NULL;
     }
 
-    while (!signal_received)
+    // Get file size to read only existing data
+    off_t file_size = lseek(data_fd, 0, SEEK_END);
+    lseek(data_fd, 0, SEEK_SET);
+    off_t bytes_to_read = file_size;
+
+    while (!signal_received && bytes_to_read > 0)
     {
-        ssize_t bytes_read = read(data_fd, buffer, BUFFER_SIZE);
+        size_t read_size = (bytes_to_read < BUFFER_SIZE) ? bytes_to_read : BUFFER_SIZE;
+        ssize_t bytes_read = read(data_fd, buffer, read_size);
 
         if (bytes_read < 0)
         {
@@ -279,6 +285,8 @@ void *handle_connection(void *arg)
             // End of file
             break;
         }
+
+        bytes_to_read -=bytes_read;
 
         ssize_t bytes_sent = send(client_fd, buffer, bytes_read, 0);
         if (bytes_sent != bytes_read)
